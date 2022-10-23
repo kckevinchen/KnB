@@ -6,7 +6,6 @@
 #
 from __future__ import division
 import numpy as np
-from lattices.Zn_lattice import ZnCodec
 import faiss
 from scipy.special import digamma
 import torch
@@ -193,21 +192,6 @@ class Quantizer:
     def __call__(self, x):
         return self.quantize(x)
 
-class Zn(Quantizer):
-    def __init__(self, r2, d):
-        super(Zn, self).__init__()
-        self.r2 = r2
-        self.r = np.sqrt(self.r2)
-        self.d = d
-        self.codec = ZnCodec(self.d, self.r2)
-        ntot = self.codec.nv
-        self.bits = int(np.ceil(np.log2(float(ntot))))
-
-    def quantize(self, x):
-        if not np.all(np.abs(np.linalg.norm(x, axis=1) - 1) < 1e-5):
-            print("WARNING: Vectors were not L2 normalized in Zn")
-
-        return self.codec.quantize(self.r * x) / self.r
 
 
 class Identity(Quantizer):
@@ -283,7 +267,7 @@ class PQAdaptive(Quantizer):
         self.imp = imp
 
     def cal_margin(self,x,k=5):
-        negative_idx_imp = get_nearestneighbors_faiss(x[self.imp], x, k, "cuda", needs_exact=False)
+        _,negative_idx_imp = get_nearestneighbors_faiss(x[self.imp], x, k, "cuda", needs_exact=False)
         self.margin = np.unique(negative_idx_imp.flatten()).astype(np.int32)
         imp_idx = np.nonzero(self.imp)[0]
         self.margin = np.setdiff1d(self.margin,imp_idx,assume_unique=True)
@@ -403,7 +387,7 @@ class OPQAdaptive(Quantizer):
 
 
     def cal_margin(self,x,k=5):
-        negative_idx_imp = get_nearestneighbors_faiss(x[self.imp], x, k, "cuda", needs_exact=False)
+        _,negative_idx_imp = get_nearestneighbors_faiss(x[self.imp], x, k, "cuda", needs_exact=False)
         self.margin = np.unique(negative_idx_imp.flatten()).astype(np.int32)
         imp_idx = np.nonzero(self.imp)[0]
         self.margin = np.setdiff1d(self.margin,imp_idx,assume_unique=True)

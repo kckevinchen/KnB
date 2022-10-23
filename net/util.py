@@ -1,13 +1,11 @@
 from __future__ import division
-from functools import reduce
-from lib.data import load_dataset
 import time
 import argparse
 import numpy as np
 from torch import nn, optim
-from lib.metrics import ValidationFunction, get_nearestneighbors, sanitize
-from lib.net import Normalize, forward_pass, StraightThroughQuantizer
-from lib.quantizers import Zn, getQuantizer
+from net.lib.metrics import ValidationFunction, get_nearestneighbors, sanitize
+from net.lib.net import Normalize, forward_pass
+from net.lib.quantizers import getQuantizer
 import torch.nn.functional as F
 import torch
 import itertools
@@ -152,13 +150,7 @@ def triplet_optimize(xt, gt_nn,imp_idx, net, args, val_func,new_loss=True):
     print("Lr schedule", lr_schedule)
 
     N, kpos = gt_nn.shape
-
-    if args.quantizer_train != "":
-        assert args.quantizer_train.startswith("zn_")
-        r2 = int(args.quantizer_train.split("_")[1])
-        qt = StraightThroughQuantizer(Zn(r2))
-    else:
-        qt = lambda x: x
+    qt = lambda x: x
 
     xt_var = torch.from_numpy(xt).to(args.device)
 
@@ -456,24 +448,13 @@ def generate_result(l,xt,xq_all,xb,imp_idx,imp_xb,gt_all,all_skewness = [0.5],di
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    # Radiuses that correspond to 16, 32 and 64 bits for Zn
-    radiuses = {
-        16: [4, 21, 200],
-        24: [3, 10, 79],
-        32: [3, 8, 36],
-        40: [2, 7, 24],
-    }
     args.checkpoint_dir = dir
-    # Validation quantizers default to Zn
     args.validation_quantizers = []
     args.validation_quantizers.extend(["hnsw_15"])
     args.validation_quantizers.extend(["hnswAdaptive_15"])
-    args.validation_quantizers.extend(["pq_%d" % x for x in l])
     args.validation_quantizers.extend(["opq_%d" % x for x in l])
     args.validation_quantizers.extend(["pqAdaptive_%d" % x for x in l])
     args.validation_quantizers.extend(["opqAdaptive_%d" % x for x in l])
-    if args.save_best_criterion == "":
-        args.save_best_criterion = "zn_%d,rank=10" % radiuses[args.dout][-1]
     print(args)
 
     print ("load dataset %s" % args.database)
